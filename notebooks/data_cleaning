@@ -1,0 +1,240 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "6a1371af-5a56-44ea-bbff-80c43aa94e27",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "source": [
+    "\n",
+    "<div style=\"text-align: center; line-height: 0; padding-top: 9px;\">\n",
+    "  <img src=\"https://databricks.com/wp-content/uploads/2018/03/db-academy-rgb-1200px.png\" alt=\"Databricks Learning\">\n",
+    "</div>\n"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "dad71681-dbe4-44dc-a269-da332f4077e7",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "source": [
+    "# Data Cleaning\n",
+    "This notebook focuses on cleaning the raw dataset and preparing it for transformations."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "362f2a87-4586-46fe-8804-b5bfa9eb3fb0",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "source": [
+    "## Requirements\n",
+    "\n",
+    "Please review the following requirements before starting the lesson:\n",
+    "\n",
+    "* To run this notebook, you need a classic cluster running one of the following Databricks runtime(s): **16.3.x-cpu-ml-scala2.12**. **Do NOT use serverless compute to run this notebook**."
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "d8b28bad-77a3-416e-99e2-749c21ab7fcc",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "source": [
+    "## Classroom Setup\n",
+    "\n",
+    "Before starting the demo, run the provided classroom setup script."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "e87f4bfa-0952-43f0-ab3f-683ec86a4307",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "outputs": [],
+   "source": [
+    "%run ../../../Includes/Classroom-Setup"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "126535a3-5854-4d01-90df-46d72395cffc",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Import necessary libraries\n",
+    "from pyspark.sql.functions import col, when, mean\n",
+    "\n",
+    "# Define the dataset path\n",
+    "data_path = f\"{DA.paths.datasets.cdc_diabetes}/cdc-diabetes/diabetes_binary_5050split_BRFSS2015.csv\"\n",
+    "\n",
+    "# Read the dataset\n",
+    "raw_data = (\n",
+    "    spark.read.option(\"header\", True)\n",
+    "    .option(\"inferSchema\", True)\n",
+    "    .csv(data_path)\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "a3bf20c2-e5a7-414c-b3d7-974593e24b8d",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Handle missing values\n",
+    "# Replace missing values in numeric columns with their mean\n",
+    "columns_to_clean = [col_name for col_name in raw_data.columns if raw_data.select(col_name).schema[0].dataType.typeName() in ['int', 'double']]\n",
+    "\n",
+    "for column in columns_to_clean:\n",
+    "    mean_value = raw_data.select(mean(col(column)).alias(\"mean\")).first()[\"mean\"]\n",
+    "    raw_data = raw_data.fillna({column: mean_value})\n",
+    "\n",
+    "# Display the cleaned dataset\n",
+    "display(raw_data)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "3364e81f-1cc5-4aac-b4ca-1df917858233",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Add a health risk label for classification (example transformation)\n",
+    "cleaned_data = raw_data.withColumn(\n",
+    "    \"health_risk_label\",\n",
+    "    when(col(\"Diabetes_binary\") == 1, \"High Risk\").otherwise(\"Low Risk\")\n",
+    ")\n",
+    "\n",
+    "# Display the transformed dataset\n",
+    "display(cleaned_data)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 0,
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "8d8e8bee-dc1e-4183-9970-b254d82cc924",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "outputs": [],
+   "source": [
+    "# Define the path to save the cleaned data\n",
+    "cleaned_data_path = f\"{DA.catalog_name}.{DA.schema_name}.cleaned_diabetes_data\"\n",
+    "\n",
+    "# Write the cleaned DataFrame to Delta format\n",
+    "cleaned_data.write.format(\"delta\").mode(\"overwrite\").saveAsTable(cleaned_data_path)\n",
+    "\n",
+    "print(f\"Cleaned data saved to: {cleaned_data_path}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "metadata": {
+    "application/vnd.databricks.v1+cell": {
+     "cellMetadata": {},
+     "inputWidgets": {},
+     "nuid": "6a2da3e5-b840-43d3-81f9-cef800730b8f",
+     "showTitle": false,
+     "tableResultSettingsMap": {},
+     "title": ""
+    }
+   },
+   "source": [
+    "\n",
+    "&copy; 2025 Databricks, Inc. All rights reserved.<br/>\n",
+    "Apache, Apache Spark, Spark and the Spark logo are trademarks of the \n",
+    "<a href=\"https://www.apache.org/\">Apache Software Foundation</a>.<br/>\n",
+    "<br/><a href=\"https://databricks.com/privacy-policy\">Privacy Policy</a> | \n",
+    "<a href=\"https://databricks.com/terms-of-use\">Terms of Use</a> | \n",
+    "<a href=\"https://help.databricks.com/\">Support</a>"
+   ]
+  }
+ ],
+ "metadata": {
+  "application/vnd.databricks.v1+notebook": {
+   "computePreferences": null,
+   "dashboards": [],
+   "environmentMetadata": null,
+   "inputWidgetPreferences": null,
+   "language": "python",
+   "notebookMetadata": {},
+   "notebookName": "data_cleaning",
+   "widgets": {}
+  },
+  "language_info": {
+   "name": "python"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 0
+}
